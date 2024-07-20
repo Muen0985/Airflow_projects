@@ -1,0 +1,2 @@
+need to update the connections everytime when you restart the containers
+either using docker-compose up -d or docker desktop

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.mysql_operator import MySqlOperator
+from airflow.contrib.sensors.file_sensor import FileSensor
 from datacleaning import data_cleaning
 
 yesterday_date=datetime.strftime(datetime.now()-timedelta(1),'%Y-%m-%d')
@@ -16,8 +17,16 @@ default_args={
 
 # DAG_id
 with DAG('store_dag', default_args=default_args, schedule_interval='@daily', template_searchpath=['/usr/local/airflow/sql_files'], catchup=False) as dag:
-    t1=BashOperator(task_id='check_file_exists',bash_command='shasum ~/store_files_airflow/raw_store_transactions.csv',
-                    retries=2,retry_delay=timedelta(seconds=15))
+
+    t1=FileSensor(task_id='check_file_exists',
+                  filepath='/usr/local/airflow/store_files_airflow/raw_store_transactions.csv',
+                  fs_conn_id='fs_default',
+                  poke_interval=10,
+                  timeout=150,
+                  soft_fail=True
+                  )
+    # t1=BashOperator(task_id='check_file_exists',bash_command='shasum ~/store_files_airflow/raw_store_transactions.csv',
+    #                 retries=2,retry_delay=timedelta(seconds=15))
     t2=PythonOperator(task_id='clean_raw_data',python_callable=data_cleaning)
 
     t3=MySqlOperator(task_id='create_table',mysql_conn_id="mysql_conn",sql="create_table.sql")
